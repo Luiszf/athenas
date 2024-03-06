@@ -2,13 +2,30 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
+import * as stylex from '@stylexjs/stylex'
+
+const styles = stylex.create({
+  root: {
+    width: '100%',
+    maxWidth: 800,
+    minHeight: 40,
+    },
+    child: {
+      backgroundColor: 'red',
+      marginBlock: '1rem',
+    },
+})
+
 
 function App() {
   const [count, setCount] = useState(0)
 
   return (
     <>
-      <div>
+      <div {...stylex.props(
+        styles.child
+
+      )}>
         <a href="https://vitejs.dev" target="_blank">
           <img src={viteLogo} className="logo" alt="Vite logo" />
         </a>
