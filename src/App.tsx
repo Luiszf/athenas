@@ -1,12 +1,12 @@
 import * as stylex from '@stylexjs/stylex'
 import { colors } from './tokens.stylex'
-import LogIn from './Login'
+import Feed from './Feed'
 
 const styles = stylex.create({
   root: {
     color: colors.primaryText,
-    width: '100vw',
-    height: '100vh',
+    width: '100%',
+    height: '100%',
     backgroundColor: colors.background,
     display: 'flex',
     flexDirection: 'column',
@@ -21,7 +21,7 @@ function App() {
         styles.root,
       )}>
       
-      <LogIn/>
+      <Feed/>
       
       </div>
   )
