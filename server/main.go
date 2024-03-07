@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 
+	routing "github.com/qiangxue/fasthttp-routing"
 	"github.com/valyala/fasthttp"
 
 	"github.com/jackc/pgx/v5"
@@ -16,63 +18,62 @@ var (
 	compress = flag.Bool("compress", false, "Whether to enable transparent response compression")
 )
 
+var connection *pgx.Conn
+
 type test struct {
-	id   int32
-	name string
+	Id   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 func main() {
 
-	flag.Parse()
-
-	h := requestHandler
-	if *compress {
-		h = fasthttp.CompressHandler(h)
+	var err error
+	connection, err = pgx.Connect(context.Background(), "postgres://postgres:postgres@localhost:5432/postgres")
+	if err != nil {
+		fmt.Print(err)
 	}
 
-	if err := fasthttp.ListenAndServe(*addr, h); err != nil {
+	flag.Parse()
+
+	router := routing.New()
+
+	api := router.Group("/api")
+
+	api.Get("/show", listTest)
+	api.Post("/insert", insertTest)
+
+	router.Get("/", func(c *routing.Context) error {
+		fmt.Fprint(c, "ola bom dia")
+		return nil
+	})
+
+	if err := fasthttp.ListenAndServe(*addr, router.HandleRequest); err != nil {
 		log.Fatalf("Error in ListenAndServe: %v", err)
 	}
 
 }
-func requestHandler(ctx *fasthttp.RequestCtx) {
-	switch string(ctx.Path()) {
-	case "/insert":
-		err := insertTest(ctx, test{1, "tentativa"})
-		if err != nil {
-			fmt.Fprintf(ctx, "triste, luis!\n\n")
-		}
-	case "/show":
-		err := listTest(ctx)
-		if err != nil {
-			fmt.Fprintf(ctx, "triste, luis!\n\n")
-		}
-	default:
-		fmt.Fprintf(ctx, "Hello, luis!\n\n")
-	}
-}
-func listTest(ctx *fasthttp.RequestCtx) error {
-	connection, _ := pgx.Connect(context.Background(), "postgres://postgres:postgres@localhost:5432/postgres")
-	rows, _ := connection.Query(context.Background(), "select * from test")
+func listTest(ctx *routing.Context) error {
+	ctx.SetContentType("application/json")
 
-	fmt.Fprintf(ctx, "mais ou menos")
+	rows, _ := connection.Query(context.Background(), "select * from test")
 	for rows.Next() {
-		var id int32
-		var name string
-		err := rows.Scan(&id, &name)
+		x := new(test)
+		err := rows.Scan(&x.Id, &x.Name)
 		if err != nil {
 			return err
 		}
-		fmt.Fprintf(ctx, "%d. %s\n mais ou menos", id, name)
-
+		json.NewEncoder(ctx).Encode(x)
 	}
 
 	return rows.Err()
 }
-func insertTest(ctx *fasthttp.RequestCtx, test test) error {
-	fmt.Fprint(ctx, "tentando inserir")
-	connection, _ := pgx.Connect(context.Background(), "postgres://postgres:postgres@localhost:5432/postgres")
-	rows, _ := connection.Query(context.Background(), "insert into test(id, name) values($1, $2)", test.id, test.name)
+func insertTest(ctx *routing.Context) error {
+	ctx.SetContentType("application/json")
 
-	return rows.Err()
+	name := string(ctx.FormValue("name"))
+	id := string(ctx.FormValue("id"))
+
+	_, err := connection.Exec(context.Background(), "insert into test(id , name) values($1, $2)", id, name)
+
+	return err
 }
